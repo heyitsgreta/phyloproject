@@ -1,0 +1,24 @@
+{
+  "version": "1.2",
+  "dbname": "tsr3_db",
+  "dbtype": "Protein",
+  "db-version": 5,
+  "description": "/Users/Q149596/development/workspaces/explorations/phyloproject/context/database.fasta",
+  "number-of-letters": 155145,
+  "number-of-sequences": 539,
+  "last-updated": "2026-02-17T19:29:00",
+  "number-of-volumes": 1,
+  "bytes-total": 553700,
+  "bytes-to-cache": 160165,
+  "files": [
+    "tsr3_db.pdb",
+    "tsr3_db.phr",
+    "tsr3_db.pin",
+    "tsr3_db.pog",
+    "tsr3_db.pos",
+    "tsr3_db.pot",
+    "tsr3_db.psq",
+    "tsr3_db.ptf",
+    "tsr3_db.pto"
+  ]
+}
