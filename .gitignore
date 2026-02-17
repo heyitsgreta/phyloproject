@@ -6,3 +6,6 @@
 
 # R environment
 .Renviron
+
+# Claude Code
+.claude/
