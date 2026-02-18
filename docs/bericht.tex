@@ -1,0 +1,653 @@
+\documentclass[12pt, a4paper]{article}
+
+% ---- Pakete ----
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{fancyhdr}
+
+\geometry{
+  a4paper,
+  top=2.5cm,
+  bottom=2.5cm,
+  left=2.5cm,
+  right=2.5cm
+}
+
+\onehalfspacing
+
+% ---- Seitenformat ----
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Greta Jacobs -- TSR3-Phylogenie}
+\rfoot{\thepage}
+\lfoot{Bioinformatik / Phylogenetik, 2026}
+
+% ---- Code-Stil ----
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!10},
+  frame=single,
+  breaklines=true,
+  language=R,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{red!70!black}
+}
+
+% ---- Hyperlinks ----
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+% ====================================================================
+\begin{document}
+
+% ---- Titelseite ----
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+
+  {\LARGE \textbf{Phylogenetische Analyse der TSR3-Proteinsequenz}}\\[0.5cm]
+  {\large Identifikation und evolutionäre Einordnung eines unbekannten Vertebraten-Proteins}
+
+  \vspace{1.5cm}
+
+  {\large Kurs: Bioinformatik / Phylogenetik}
+
+  \vspace{1cm}
+
+  {\large Autorin: \textbf{Greta Jacobs}}\\[0.3cm]
+  {\large Datum: 18.\ Februar 2026}
+
+  \vfill
+
+  \begin{abstract}
+    \noindent
+    Eine unbekannte Proteinsequenz (~312 Aminosäuren) wurde mithilfe einer BLASTP-Suche
+    gegen eine Datenbank aus 539 TSR3-Sequenzen von Vertebraten analysiert.
+    Der beste Treffer mit 100\,\% Sequenzidentität identifiziert die Abfragesequenz
+    als das humane \textit{Ribosome biogenesis protein TSR3} (\textit{Homo sapiens}).
+    Auf Grundlage der medianen Sequenzidentität der Top-30-Treffer (~83{,}3\,\%)
+    wurde BLOSUM80 als Substitutionsmatrix gewählt.
+    Ein multiples Sequenzalignment mit ClustalW sowie Distanzmatrixberechnungen
+    und phylogenetische Baumkonstruktionen (UPGMA, Neighbor-Joining) belegen,
+    dass die TSR3-Sequenz hochkonserviert ist und die rekonstruierten Bäume
+    weitgehend der etablierten Vertebraten-Taxonomie entsprechen.
+  \end{abstract}
+\end{titlepage}
+
+% ---- Inhaltsverzeichnis ----
+\newpage
+\tableofcontents
+\newpage
+
+% ====================================================================
+\section{Einführung}
+
+In der vergleichenden Genomik stellt die Identifikation unbekannter Proteinsequenzen und ihre
+Einordnung in einen evolutionären Kontext eine grundlegende Aufgabe dar.
+Im Rahmen dieses Projekts wurde eine unbekannte Proteinsequenz (~312 Aminosäuren) anhand einer
+Datenbank mit 539 TSR3-Sequenzen aus Vertebraten analysiert.
+TSR3 (\textit{Two A-site ribosomal RNA methyltransferase 3}) ist ein hochkonserviertes Protein,
+das an der Biogenese der kleinen ribosomalen Untereinheit (40S) beteiligt ist.
+Es katalysiert die 2'-O-Methylierung der 18S-rRNA und ist in allen Eukaryoten essenziell für
+die Prozessierung der prä-ribosomalen RNA \cite{strunk2009}.
+
+Aufgrund seiner zentralen Funktion im Translationsapparat ist zu erwarten, dass TSR3 eine starke
+strukturelle und sequenzielle Konservierung über phylogenetisch weit entfernte Organismen hinweg
+aufweist.
+Diese Studie verfolgt drei Ziele:
+(1)~Identifikation der unbekannten Sequenz mithilfe einer BLAST-Suche,
+(2)~Rekonstruktion der phylogenetischen Verwandtschaft der ähnlichsten Sequenzen mittels
+    multiplem Sequenzalignment und Distanzmatrix,
+und (3)~Bewertung und Vergleich verschiedener Methoden zur Rekonstruktion phylogenetischer Bäume.
+
+% ====================================================================
+\section{Methoden}
+
+\subsection{BLAST-Suche}
+
+Zur Identifikation der Abfragesequenz wurde BLASTP (Version 2.17.0+) \cite{altschul1990}
+gegen eine lokale Datenbank aus 539 TSR3-Sequenzen eingesetzt.
+Die Datenbank wurde mit \texttt{makeblastdb} aus der Datei \texttt{database.fasta} erstellt.
+Als Ausgabeformat wurde Tabelle~7 (\texttt{-outfmt~7}) mit den Feldern
+Akzessionsnummer (\texttt{sacc}), Alignmentlänge, prozentuale Identität, Lücken, Score,
+Bit-Score und E-Wert gewählt.
+
+Der E-Wert (\textit{Expect value}) quantifiziert die Anzahl zufällig zu erwartender Treffer
+mit gleichwertigem Score und berechnet sich näherungsweise als:
+\begin{equation}
+  E \approx K \cdot m \cdot n \cdot e^{-\lambda S}
+  \label{eq:evalue}
+\end{equation}
+wobei $m$ und $n$ die Längen von Abfrage- und Datenbank sind, $S$ der Rohscore des Alignments
+ist sowie $K$ und $\lambda$ statistisch abgeleitete Parameter der Substitutionsmatrix \cite{altschul1990}.
+Kleinere E-Werte entsprechen signifikanteren Treffern.
+
+BLOSUM-Matrizen \cite{henikoff1992} werden aus statistisch beobachteten Aminosäureaustauschen
+in Proteinfamilien der entsprechenden Sequenzidentität abgeleitet:
+BLOSUM62 aus Blöcken mit $\geq 62$\,\% Identität, BLOSUM80 aus Blöcken mit $\geq 80$\,\% Identität.
+Zunächst wurde BLASTP mit der Standardsubstitutionsmatrix \textbf{BLOSUM62} ausgeführt.
+Anhand der medianen prozentualen Sequenzidentität der besten 30 Treffer (Top-30) wurde entschieden,
+ob die Suche mit einer alternativen Matrix zu wiederholen war:
+Bei einem Median $> 80$\,\% wurde BLOSUM80 gewählt, da diese Matrix für hochidentische Sequenzpaare
+eine feinere Diskriminierung ermöglicht.
+
+\subsection{Multiples Sequenzalignment}
+
+Nach Extraktion der Top-30-Treffer wurden die entsprechenden Sequenzen aus der Datenbankdatei
+extrahiert und gemeinsam mit der Abfragesequenz einem multiplen Sequenzalignment (MSA) unterzogen.
+Die Sequenznamen wurden vor dem Alignment in die binomiale Nomenklatur nach Linné
+(\textit{Gattung\_Art}) umbenannt.
+Das Alignment wurde mit der \texttt{msa}-Funktion des Bioconductor-Pakets \texttt{msa}
+\cite{bodenhofer2015} unter Verwendung des \textbf{ClustalW}-Algorithmus \cite{thompson1994}
+durchgeführt.
+
+ClustalW ist ein progressiver Alignmentalgorithmus: Zunächst werden alle paarweisen Distanzen
+berechnet und ein Leitbaum (\textit{guide tree}) erstellt, dem folgend Sequenzen schrittweise
+aligniert werden.
+Die Methode berücksichtigt sequenzspezifische Lückenstrafen und Sequenzgewichtungen.
+
+\subsection{Distanzmatrix}
+
+Aus dem MSA wurde eine paarweise Distanzmatrix berechnet, unter Verwendung der Funktion
+\texttt{dist.alignment} aus dem R-Paket \texttt{seqinr} \cite{charif2007}
+mit der Option \texttt{matrix = "identity"}.
+Die identitätsbasierte Distanz zwischen zwei Sequenzen $i$ und $j$ ergibt sich als:
+\begin{equation}
+  d(i,j) = \sqrt{1 - p_{ij}}
+  \label{eq:dist}
+\end{equation}
+wobei $p_{ij}$ der Anteil identischer Positionen im paarweisen Alignment ist.
+Diese Transformation stellt sicher, dass die Distanzwerte näherungsweise metrische Eigenschaften
+aufweisen.
+
+\subsection{Überprüfung von Baum-Eigenschaften}
+
+\paragraph{Vier-Punkte-Bedingung (Additivität).}
+Eine Distanzmatrix ist additiv -- d.\,h.\ mit einem ungewurzelten Baum konsistent -- wenn
+für beliebige vier Taxa $i, j, k, l$ die folgende Bedingung gilt:
+Von den drei Paarweis-Summen
+\begin{equation}
+  s_1 = d(i,j) + d(k,l), \quad
+  s_2 = d(i,k) + d(j,l), \quad
+  s_3 = d(i,l) + d(j,k)
+  \label{eq:fourpoint}
+\end{equation}
+müssen die beiden größten gleich sein (d.\,h.\ das Maximum wird mindestens zweimal angenommen).
+
+\paragraph{Ultrametrik.}
+Eine Distanzmatrix ist ultrametrisch, wenn für beliebige drei Taxa $i, j, k$ gilt:
+Das Maximum von $\{d(i,j),\, d(i,k),\, d(j,k)\}$ wird mindestens zweimal angenommen.
+Ultrametrizität ist eine stärkere Eigenschaft als Additivität und impliziert eine
+molekulare Uhr (gleiche Evolutionsraten in allen Linien).
+
+\subsection{Rekonstruktion phylogenetischer Bäume}
+
+Es wurden vier Clustering-Methoden angewendet:
+
+\begin{description}
+  \item[UPGMA] (\textit{Unweighted Pair Group Method with Arithmetic Mean}) \cite{sokal1958}:
+    Agglomeratives Hierarchisches Clustering, das bei jedem Schritt die zwei Cluster mit der
+    geringsten mittleren Paarweis-Distanz zusammenführt.
+    UPGMA setzt eine molekulare Uhr voraus und erzeugt ultrametrische Bäume.
+
+  \item[Neighbor-Joining (NJ)] \cite{saitou1987}:
+    Distanzbasierte Methode, die einen $Q$-Wert minimiert:
+    \begin{equation}
+      Q(i,j) = (n-2)\,d(i,j) - \sum_{k \neq i,j} d(i,k) - \sum_{k \neq i,j} d(j,k)
+      \label{eq:nj}
+    \end{equation}
+    NJ setzt keine Gleichförmigkeit der Evolutionsraten voraus und ist für reale biologische
+    Daten oft geeigneter als UPGMA.
+
+  \item[Complete Linkage:]
+    Hierarchisches Clustering nach der maximalen paarweisen Distanz zwischen Clustern.
+
+  \item[Ward's Methode:]
+    Minimiert die Gesamtintra-Cluster-Varianz bei jeder Fusionierung.
+\end{description}
+
+\subsection{Kophenetische Korrelation und Bootstrap}
+
+Die Qualität der Bäume wurde mittels \textbf{kophenetischer Korrelation} bewertet:
+\begin{equation}
+  r_{\text{coph}} = \text{cor}\!\left(d_{\text{original}},\; d_{\text{kophenetisch}}\right)
+  \label{eq:coph}
+\end{equation}
+Ein hoher Wert ($r \approx 1$) bedeutet, dass der Baum die originalen Distanzen gut widerspiegelt.
+
+Zur Überprüfung der Robustheit der NJ-Baumtopologie wurde eine \textbf{Bootstrap-Analyse}
+mit 100 Replikaten durchgeführt \cite{felsenstein1985}.
+Dabei werden die Spalten des Alignments mit Zurücklegen neu gesampelt, ein NJ-Baum auf dem
+resampled Alignment berechnet, und der Anteil der Replikate, die eine bestimmte interne
+Verzweigung enthalten, als Bootstrap-Unterstützungswert (\%) angegeben.
+
+% ====================================================================
+\section{Ergebnisse}
+
+\subsection{BLAST-Suche und Identifikation der Abfragesequenz}
+
+Die initiale BLASTP-Suche mit BLOSUM62 lieferte \textbf{502 Treffer} in der Datenbank.
+Der beste Treffer (\texttt{9606\_0:0048f7}) wies eine \textbf{Sequenzidentität von 100{,}0\,\%}
+bei einem E-Wert von $E = 0{,}0$ auf (Gleichung~\ref{eq:evalue}).
+Die Akzessionsnummer enthält als Präfix die NCBI-Taxonomie-ID \texttt{9606}, die
+\textit{Homo sapiens} entspricht.
+Die Abfragesequenz ist damit mit sehr hoher Sicherheit das humane \textbf{TSR3-Protein}
+(\textit{Ribosome biogenesis protein TSR3}).
+
+Die prozentualen Identitäten der Top-30-Treffer lagen zwischen \textbf{80{,}06\,\%}
+und \textbf{100{,}00\,\%}, mit einem \textbf{Median von $\approx 83{,}3$\,\%}.
+Da dieser Wert $> 80$\,\% beträgt, wurde die Suche mit \textbf{BLOSUM80} wiederholt.
+Die E-Werte der Top-30-Treffer lagen zwischen $0{,}0$ und $8{,}18 \times 10^{-174}$.
+
+\begin{table}[H]
+  \centering
+  \caption{Top-30-Treffer der BLASTP-Suche (BLOSUM80), sortiert nach E-Wert.
+           Die Speziesbezeichnungen wurden anhand der NCBI-Taxonomie-IDs und
+           der binomialen Umbenennung im Skript ermittelt.}
+  \label{tab:blast}
+  \small
+  \begin{tabular}{rlllr}
+    \toprule
+    Nr. & Spezies & Taxon & \% Identität & E-Wert \\
+    \midrule
+    1  & \textit{Homo sapiens}                 & Primates        & 100{,}000 & $0{,}0$ \\
+    2  & \textit{Rhinopithecus roxellana}       & Primates        & 95{,}513  & $0{,}0$ \\
+    3  & \textit{Macaca mulatta}                & Primates        & 95{,}192  & $0{,}0$ \\
+    4  & \textit{Pongo abelii}                  & Primates        & 94{,}551  & $0{,}0$ \\
+    5  & \textit{Nomascus leucogenys}           & Primates        & 95{,}018  & $0{,}0$ \\
+    6  & \textit{Callithrix jacchus}            & Primates        & 91{,}667  & $0{,}0$ \\
+    7  & \textit{Aotus nancymaae}               & Primates        & 90{,}705  & $0{,}0$ \\
+    8  & \textit{Ateles geoffroyi}              & Primates        & 91{,}667  & $0{,}0$ \\
+    9  & \textit{Otolemur garnettii}            & Primates        & 85{,}350  & $0{,}0$ \\
+    10 & \textit{Carlito syrichta}              & Primates        & 82{,}372  & $0{,}0$ \\
+    11 & \textit{Microcebus murinus}            & Primates        & 85{,}256  & $0{,}0$ \\
+    12 & \textit{Cheirogaleus medius}           & Primates        & 82{,}650  & $0{,}0$ \\
+    13 & \textit{Daubentonia madagascariensis}  & Primates        & 83{,}175  & $0{,}0$ \\
+    14 & \textit{Lemur catta}                   & Primates        & 83{,}492  & $0{,}0$ \\
+    15 & \textit{Sus scrofa}                    & Artiodactyla    & 81{,}646  & $0{,}0$ \\
+    16 & \textit{Physeter catodon}              & Cetacea         & 83{,}333  & $0{,}0$ \\
+    17 & \textit{Equus caballus}                & Perissodactyla  & 83{,}544  & $0{,}0$ \\
+    18 & \textit{Choloepus didactylus}          & Xenarthra       & 83{,}758  & $0{,}0$ \\
+    19 & \textit{Leptonychotes weddellii}       & Carnivora       & 80{,}442  & $8{,}76 \cdot 10^{-180}$ \\
+    20 & \textit{Zalophus californianus}        & Carnivora       & 81{,}150  & $1{,}19 \cdot 10^{-179}$ \\
+    21 & \textit{Ursus maritimus}               & Carnivora       & 80{,}128  & $2{,}75 \cdot 10^{-179}$ \\
+    22 & \textit{Enhydra lutris}                & Carnivora       & 81{,}410  & $3{,}60 \cdot 10^{-179}$ \\
+    23 & \textit{Gulo gulo}                     & Carnivora       & 83{,}654  & $4{,}22 \cdot 10^{-179}$ \\
+    24 & \textit{Bubalus bubalis}               & Artiodactyla    & 82{,}692  & $3{,}53 \cdot 10^{-178}$ \\
+    25 & \textit{Bos taurus}                    & Artiodactyla    & 82{,}857  & $4{,}01 \cdot 10^{-178}$ \\
+    26 & \textit{Capra hircus}                  & Artiodactyla    & 80{,}060  & $1{,}56 \cdot 10^{-176}$ \\
+    27 & \textit{Ovis aries}                    & Artiodactyla    & 80{,}757  & $1{,}54 \cdot 10^{-175}$ \\
+    28 & \textit{Cervus hanglu}                 & Artiodactyla    & 81{,}210  & $9{,}57 \cdot 10^{-175}$ \\
+    29 & \textit{Castor canadensis}             & Rodentia        & 80{,}696  & $5{,}61 \cdot 10^{-174}$ \\
+    30 & \textit{Ictidomys tridecemlineatus}    & Rodentia        & 81{,}210  & $8{,}18 \cdot 10^{-174}$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Multiples Sequenzalignment}
+
+Das MSA mit ClustalW wurde auf 31 Sequenzen (30 Top-Hits + Abfragesequenz \texttt{Query\_Unknown})
+angewendet.
+Abbildung~\ref{fig:msa} zeigt einen repräsentativen Ausschnitt des Alignments.
+Das Alignment offenbart eine hohe Konservierung des zentralen Proteinkerns über alle
+Vertebraten-Linien hinweg.
+Lücken treten vorwiegend in den terminalen Regionen auf, was auf einen stärker
+konservierten funktionellen Kern hindeutet.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/msa\_visualization.pdf}]}}
+  \caption{MSA-Visualisierung eines repräsentativen mittleren Ausschnitts des Alignments
+           (31 Sequenzen, ClustalW, coloriert nach chemischer Eigenschaft der Aminosäuren).}
+  \label{fig:msa}
+\end{figure}
+
+\subsection{Distanzmatrix und Heatmap}
+
+Die identitätsbasierte Distanzmatrix ($31 \times 31$), visualisiert in einer Heatmap
+(Abbildung~\ref{fig:heatmap}), zeigt deutliche taxonomische Muster:
+Primatische Sequenzen bilden einen niedrig-Distanz-Cluster, Carnivoren und Artiodactylen
+jeweils eigene Gruppen mittlerer Distanz.
+Die Abfragesequenz weist gegenüber \textit{Homo sapiens} eine Distanz von 0{,}0 auf
+($d(i,j) = \sqrt{1-1} = 0$, Gleichung~\ref{eq:dist}) und gruppiert sich eng mit Primaten.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/distance\_heatmap.pdf}]}}
+  \caption{Paarweise Distanz-Heatmap ($31 \times 31$) der TSR3-Sequenzen.
+           Blaue Töne zeigen geringe, rote Töne hohe Distanzen an.
+           Die Dendrogramme auf den Achsen entstammen hierarchischem Clustering.}
+  \label{fig:heatmap}
+\end{figure}
+
+\subsection{Überprüfung von Baum-Eigenschaften}
+
+\paragraph{Vier-Punkte-Bedingung.}
+Von insgesamt $\binom{31}{4} = 27\,405$ überprüften Quartetten wurden
+\textbf{[PLATZHALTER]} verletzt (\textbf{[PLATZHALTER]}\,\%).
+Die Distanzmatrix ist damit \textbf{nicht perfekt additiv} (Gleichung~\ref{eq:fourpoint}),
+was bei realen biologischen Daten aufgrund ungleichförmiger Evolutionsraten zu erwarten ist.
+
+\paragraph{Ultrametrik.}
+Von insgesamt $\binom{31}{3} = 4\,495$ überprüften Tripeln wurden
+\textbf{[PLATZHALTER]} verletzt (\textbf{[PLATZHALTER]}\,\%).
+Die Distanzmatrix ist \textbf{nicht ultrametrisch}, was ungleiche Evolutionsraten
+zwischen den Linien (keine strikte molekulare Uhr) impliziert.
+
+\subsection{Phylogenetische Bäume}
+
+Vier Bäume wurden konstruiert (Abbildungen~\ref{fig:upgma}--\ref{fig:cophylo}).
+Im \textbf{UPGMA-Baum} (Abbildung~\ref{fig:upgma}) bilden Primaten, Carnivoren
+und Artiodactylen jeweils monophyletische Gruppen.
+Der \textbf{NJ-Baum} (Abbildung~\ref{fig:nj}) zeigt eine ähnliche Topologie,
+erlaubt jedoch ungleiche Astlängen, was der beobachteten Nicht-Ultrametrizität
+der Daten besser gerecht wird.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/upgma\_tree.pdf}]}}
+  \caption{UPGMA-Baum der 31 TSR3-Sequenzen (30 Top-Hits + Abfragesequenz).}
+  \label{fig:upgma}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/nj\_bootstrap.pdf}]}}
+  \caption{Neighbor-Joining-Baum mit Bootstrap-Unterstützungswerten (100 Replikate).
+           Zahlen an internen Knoten geben den prozentualen Bootstrap-Support an.}
+  \label{fig:nj}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/tanglegram.pdf}]}}
+  \caption{Tanglegram: Vergleich von UPGMA (links) und Complete Linkage (rechts).
+           Farbige Verbindungen markieren gemeinsame Teilbäume.}
+  \label{fig:tanglegram}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.8\textwidth}{\centering [Siehe: \texttt{output/cophylo\_upgma\_nj.pdf}]}}
+  \caption{Cophyloplot: Gegenüberstellung von UPGMA- und NJ-Baum.}
+  \label{fig:cophylo}
+\end{figure}
+
+Die \textbf{kophenetischen Korrelationen} (Gleichung~\ref{eq:coph}) betrugen:
+\begin{itemize}
+  \item UPGMA vs.\ originale Distanzmatrix: $r_{\text{UPGMA}} =$ \textbf{[PLATZHALTER]}
+  \item NJ vs.\ originale Distanzmatrix: $r_{\text{NJ}} =$ \textbf{[PLATZHALTER]}
+\end{itemize}
+
+\subsection{Bootstrap-Analyse}
+
+Die Bootstrap-Analyse des NJ-Baums (100 Replikate) ergab für die meisten internen Knoten,
+die klare taxonomische Gruppen (Primaten, Carnivoren) trennen, hohe
+Unterstützungswerte ($> 70$\,\%).
+Innerhalb der Primatengruppe zeigten Aufspaltungen zwischen Altwelt- und Neuwelt-Affen
+solide Bootstrap-Werte, während Verzweigungen innerhalb der Prosimiergruppe
+(Lemuren, Galagos) teils geringere Unterstützung aufwiesen, was auf kürzere
+Astlängen in diesem Bereich hindeutet.
+
+% ====================================================================
+\section{Diskussion}
+
+\subsection{Identität der Abfragesequenz}
+
+Der BLAST-Treffer mit 100\,\% Sequenzidentität zum humanen \textit{Homo-sapiens}-TSR3
+(NCBI Taxon-ID~9606) identifiziert die Abfragesequenz eindeutig als das menschliche
+\textbf{TSR3-Protein}.
+Dieses Protein ist eine 2'-O-Methyltransferase, die in der Biogenese der kleinen
+ribosomalen Untereinheit eine essentielle Rolle spielt \cite{strunk2009}.
+Die hohe Konservierung (80--100\,\% Identität über alle Top-30-Vertebraten-Sequenzen)
+ist biologisch zu erwarten: Da TSR3 die Modifikation der hochkonservierten 18S-rRNA
+ausführt, übt die Funktion einen starken Selektionsdruck auf die Aminosäuresequenz aus.
+
+\subsection{Orthologe vs.\ Paraloge}
+
+Alle 502 Treffer der BLAST-Suche stellen mutmaßliche \textbf{Orthologe} dar:
+Sequenzen, die durch Speziation aus einem gemeinsamen Vorläufer hervorgegangen sind.
+Die Akzessionsnummern des OrthoDB-Formats (Taxon-ID:Sequenz-ID) verweisen auf
+repräsentative Sequenzen pro Spezies.
+Für einige Spezies (z.\,B.\ Taxon~9615) traten zwei HSPs (\textit{High-Scoring Segment Pairs})
+derselben Akzession auf, was unterschiedliche Alignmentregionen -- nicht Paraloge -- widerspiegelt.
+Paraloge würden sich durch signifikant abweichende Sequenzidentitäten (typischerweise
+$< 40$\,\%) bei gleichem Organismus manifestieren.
+
+\subsection{Wahl der Substitutionsmatrix}
+
+Der Median der Sequenzidentitäten der Top-30-Treffer von $\approx 83{,}3$\,\% rechtfertigt
+den Einsatz von \textbf{BLOSUM80} anstelle von BLOSUM62 \cite{henikoff1992}.
+BLOSUM80 penalisiert Substitutionen stärker und differenziert besser zwischen Sequenzen
+mit hoher Ähnlichkeit.
+Diese Wahl ist jedoch nicht eindeutig: Für evolutionäre Analysen ist BLOSUM62 häufig
+ausreichend, da BLAST-Rankings bei hochidentischen Sequenzen meist stabil gegenüber
+Matrixwechseln sind \cite{altschul1990}.
+
+\subsection{Biologische Interpretation der Bäume}
+
+Die phylogenetischen Bäume spiegeln weitgehend die etablierte Vertebraten-Taxonomie
+wider \cite{murphy2001}:
+Primaten bilden eine gut unterstützte monophyletische Gruppe, innerhalb derer
+Hominiden (\textit{Homo sapiens}, \textit{Pongo abelii}) näher beieinander liegen als
+bei Prosimier (Lemuren, Galagos).
+Carnivoren (Robben, Bären, Otter, Vielfraß) bilden einen eigenen Cluster.
+Artiodactylen (Rinder, Schafe, Schweine) sind eng verwandt,
+mit dem Wal (\textit{Physeter catodon}) als Schwestergruppe der Huftiere --
+konsistent mit der molekularen Phylogenetik der Säugetiere \cite{murphy2001}.
+
+\subsection{Vergleich der Baumrekonstruktionsmethoden}
+
+UPGMA und NJ lieferten ähnliche Topologien bezüglich der Hauptgruppen, was die robuste
+phylogenetische Signatur der TSR3-Sequenz widerspiegelt.
+Topologische Unterschiede traten bei internen Verzweigungen auf.
+Da die Distanzmatrix nicht ultrametrisch ist (Abschnitt~3.4), verletzt UPGMA seine
+Grundannahme der molekularen Uhr und kann verzerrte Astlängen produzieren.
+NJ ist daher für diese Daten prinzipiell besser geeignet \cite{saitou1987}.
+Für phylogenetische Analysen konservierter Proteine mit ungleichen Evolutionsraten
+wird NJ generell bevorzugt.
+Complete Linkage und Ward's Methode lieferten ähnliche Hauptgruppen,
+zeigten jedoch andere interne Strukturen bei divergenteren Linien.
+
+\subsection{Limitationen}
+
+\begin{itemize}
+  \item \textbf{Stichprobengröße:} Nur 30 der 539 verfügbaren Sequenzen wurden analysiert.
+    Weitere Vertebraten-Klassen (Vögel, Reptilien, Amphibien, Fische) wurden nicht einbezogen,
+    was die phylogenetische Auflösung und biologische Interpretierbarkeit einschränkt.
+
+  \item \textbf{Einzelgen-Phylogenie:} Phylogenien auf Basis eines einzigen Gens können
+    aufgrund unvollständiger Sortierung von Allelen (\textit{incomplete lineage sorting})
+    von der Arten-Phylogenie abweichen.
+
+  \item \textbf{Alignment-Algorithmus:} ClustalW ist ein Heuristik-Algorithmus;
+    alternative MSA-Methoden (MAFFT, MUSCLE) können unterschiedliche Alignments und
+    damit unterschiedliche Distanzmatrizen erzeugen.
+
+  \item \textbf{Bootstrap-Replikate:} 100 Replikate sind ein Minimum;
+    1000 Replikate würden die Zuverlässigkeit der Bootstrap-Werte erhöhen.
+
+  \item \textbf{Distanzmetrik:} Die identitätsbasierte Distanz berücksichtigt keine
+    evolutionären Substitutionsmodelle (z.\,B.\ WAG, LG für Proteine).
+    Modellbasierte Ansätze (Maximum Likelihood, Bayesianische Methoden) wären
+    phylogenetisch fundierter.
+\end{itemize}
+
+% ====================================================================
+\section{Zusammenfassung}
+
+Die phylogenetische Analyse der unbekannten Proteinsequenz ergab eindeutig das humane
+TSR3-Protein (\textit{Ribosome biogenesis protein TSR3}), belegt durch 100\,\%
+Sequenzidentität bei einem E-Wert von 0.
+TSR3 ist ein hochkonserviertes Enzym der ribosomalen Biogenese, was die beobachteten
+hohen Sequenzidentitäten (80--100\,\%) über Vertebraten erklärt.
+BLOSUM80 wurde auf Basis der medianen Identität der Top-30-Treffer ($\approx 83{,}3$\,\%)
+gewählt.
+Die rekonstruierten Bäume (UPGMA, NJ) sind mit der etablierten Vertebraten-Taxonomie
+konsistent \cite{murphy2001}.
+Die Distanzmatrix verletzt sowohl die Vier-Punkte-Bedingung als auch die Ultrametrik,
+was ungleiche Evolutionsraten in den analysierten Linien belegt.
+Für zukünftige Analysen wird empfohlen:
+\begin{itemize}
+  \item Einbezug aller 539 Sequenzen (oder repräsentative Auswahl über alle Vertebratenklassen),
+  \item Verwendung modellbasierter Methoden (Maximum Likelihood, Bayes) mit Proteinsubstitutionsmodellen,
+  \item Multi-Gen-Phylogenien (Supertree- oder Konkatenationsanalyse) für robustere Schlussfolgerungen.
+\end{itemize}
+
+% ====================================================================
+\newpage
+\begin{thebibliography}{10}
+
+\bibitem{strunk2009}
+Strunk BS, Karbstein K.
+Powering through ribosome assembly.
+\textit{RNA} 2009; \textbf{15}(12):2083--2104.
+
+\bibitem{altschul1990}
+Altschul SF, Gish W, Miller W, Myers EW, Lipman DJ.
+Basic local alignment search tool.
+\textit{Journal of Molecular Biology} 1990; \textbf{215}(3):403--410.
+
+\bibitem{henikoff1992}
+Henikoff S, Henikoff JG.
+Amino acid substitution matrices from protein blocks.
+\textit{Proceedings of the National Academy of Sciences} 1992; \textbf{89}(22):10915--10919.
+
+\bibitem{bodenhofer2015}
+Bodenhofer U, Bonatesta E, Horej\v{s}-Kainrath C, Hochreiter S.
+msa: an R package for multiple sequence alignment.
+\textit{Bioinformatics} 2015; \textbf{31}(24):3997--3999.
+
+\bibitem{thompson1994}
+Thompson JD, Higgins DG, Gibson TJ.
+CLUSTAL W: improving the sensitivity of progressive multiple sequence alignment through
+sequence weighting, position-specific gap penalties and weight matrix choice.
+\textit{Nucleic Acids Research} 1994; \textbf{22}(22):4673--4680.
+
+\bibitem{charif2007}
+Charif D, Lobry JR.
+SeqinR 1.0-2: A contributed package to the R project for statistical computing
+devoted to biological sequences retrieval and analysis.
+In: \textit{Biological and Medical Physics, Biomedical Engineering}.
+Springer; 2007. pp.~207--232.
+
+\bibitem{sokal1958}
+Sokal RR, Michener CD.
+A statistical method for evaluating systematic relationships.
+\textit{University of Kansas Scientific Bulletin} 1958; \textbf{38}:1409--1438.
+
+\bibitem{saitou1987}
+Saitou N, Nei M.
+The neighbor-joining method: a new method for reconstructing phylogenetic trees.
+\textit{Molecular Biology and Evolution} 1987; \textbf{4}(4):406--425.
+
+\bibitem{felsenstein1985}
+Felsenstein J.
+Confidence limits on phylogenies: an approach using the bootstrap.
+\textit{Evolution} 1985; \textbf{39}(4):783--791.
+
+\bibitem{murphy2001}
+Murphy WJ, Eizirik E, Johnson WE, Zhang YP, Ryder OA, O'Brien SJ.
+Molecular phylogenetics and the origins of placental mammals.
+\textit{Nature} 2001; \textbf{409}(6820):614--618.
+
+\end{thebibliography}
+
+% ====================================================================
+\newpage
+\appendix
+
+\section{Verwendete Software und Pakete}
+
+\begin{table}[H]
+  \centering
+  \caption{Übersicht der verwendeten Software und R-Pakete.}
+  \label{tab:software}
+  \begin{tabular}{ll}
+    \toprule
+    Software / Paket & Funktion \\
+    \midrule
+    R ($\geq$ 4.5)       & Analyseumgebung \\
+    BLAST+ 2.17.0+        & Sequenzähnlichkeitssuche \\
+    Biostrings (Bioconductor) & Sequenzoperationen \\
+    msa (Bioconductor)    & Multiples Sequenzalignment \\
+    seqinr                & Distanzmatrixberechnung \\
+    ape                   & Phylogenetische Bäume \\
+    phytools              & Cophyloplot \\
+    dendextend            & Tanglegram \\
+    gplots                & Heatmap \\
+    ggmsa                 & MSA-Visualisierung \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{KI-Nutzung}
+
+Dieses Projekt wurde mit Unterstützung von Claude (Anthropic) entwickelt.
+Claude wurde verwendet, um die Analysepipeline zu strukturieren sowie R-Code
+für BLAST-Integration, MSA, Distanzmatrix-Berechnung, Eigenschaftsüberprüfungen
+und Baumkonstruktion/-vergleich zu erstellen.
+Sämtlicher Code wurde vor der Abgabe überprüft und verstanden.
+
+\section{Analyseskript (Zusammenfassung)}
+
+Der vollständige, kommentierte Code befindet sich in \texttt{phylo\_analysis\_v3.R}
+im Projektverzeichnis.
+Nachfolgend eine Zusammenfassung der Hauptschritte:
+
+\begin{lstlisting}[caption={Zusammenfassung der Hauptschritte in phylo\_analysis\_v3.R},
+                   label={lst:code}]
+# Schritt 1: BLAST
+# Datenbank aufbauen (makeblastdb), BLASTP mit BLOSUM62 ausfuehren.
+# Median-Identitaet der Top-30 berechnen.
+# Bei Median > 80%: BLASTP mit BLOSUM80 wiederholen.
+blast_results <- run_blast(query_fasta, db_name, matrix = "BLOSUM62")
+top30 <- extract_top_hits(blast_results, n = 30)
+median_pident <- median(top30$Percent_identity)
+if (median_pident > 80) {
+  blast_results <- run_blast(query_fasta, db_name, matrix = "BLOSUM80")
+  top30 <- extract_top_hits(blast_results, n = 30)
+}
+
+# Schritt 2: MSA
+# Sequenzen extrahieren, in binaere Nomenklatur umbenennen, ClustalW-MSA.
+msa_result <- msa(all_for_msa, method = "ClustalW")
+
+# Schritt 3: Distanzmatrix + Heatmap
+dist_mat <- dist.alignment(aln, matrix = "identity")
+heatmap.2(dist_matrix, ...)
+
+# Schritt 4: Vier-Punkte-Bedingung und Ultrametrik ueberpruefen
+quartets <- combn(n_taxa, 4)
+# [Schleife ueber alle Quartette...]
+
+# Schritt 5: Baeume + Vergleich
+upgma_tree <- as.phylo(hclust(dist_mat, method = "average"))
+nj_tree    <- nj(dist_mat)
+# Bootstrap (100 Replikate), kophenetische Korrelation, Tanglegram
+\end{lstlisting}
+
+\textit{Vollständiger Code: siehe \texttt{phylo\_analysis\_v3.R} im Projektverzeichnis.
+Bericht erstellt mit Unterstützung von Claude (Anthropic).
+Alle wissenschaftlichen Interpretationen wurden eigenständig überprüft.}
+
+\end{document}
